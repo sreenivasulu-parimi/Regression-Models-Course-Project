@@ -1,0 +1,234 @@
+---
+title: "Analysis of Transmission Type impact on Mileage (MPG) using mtcars data set"
+author: "Sreenivasulu Parimi"
+date: "June 12, 2018"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Coursera: Regression Models - Course Project
+
+## Executive Summary
+
+This is a report prepared as part of the course assignment required for the Coursera Regression Models course. The instructions for this report assignment state as follows:
+
+We work for Motor Trend, a magazine about the automobile industry. Looking at a data set of a collection of cars, they are interested in exploring the relationship between a set of variables and miles per gallon (MPG) (outcome). They are particularly interested in the following two questions:
+
+* **Is an automatic or manual transmission better for MPG?**
+* **Quantify the MPG difference between automatic and manual transmissions**
+
+In general our analysis says that Manual transmissions are better in terms of mileage (mpg) than automatic. We found that, using simple linear regression with only transmission type,
+Manual transmission cars increase the mileage (mpg) by 7.245 over Automatic transmission. But, the transsmission type explained only 36% of the variation in mpg.
+
+The best model (a mutltiple linear regression model of significant variables (cyl, hp, wt, & am) determined by ANOVA) says that the manual transmission increase the mileage (mpg) by 1.80921 over Automatic transmission, however the transsmission type explained over 84% of the variation in mpg.
+
+## Data Description
+The dataset **mtcars** was extracted from the 1974 Motor Trend US magazine, which comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973-74 models).
+As per the R document <https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/mtcars.html>, the data set consists of 32 observations and 11 variables. The variables of the data set **mtcars** are:
+
+- **mpg**: Miles/(US) gallon
+- **cyl**: Number of cylinders
+- **disp**: Displacement (cubic inches)
+- **hp**: Gross horsepower
+- **drat**: Rear axle ratio
+- **wt**: Weight (1000 lbs)
+- **qsec**: 1/4 mile time
+- **vs**: Engine (0 = V-shaped, 1 = straight)
+- **am**:	Transmission (0 = automatic, 1 = manual)
+- **gear**: Number of forward gears
+- **carb**: Number of carburetors
+
+## Exploratory Data Analysis
+
+Load the required packages:
+```{r}
+library(ggplot2)
+```
+
+Read the data and run the basic data exploratory analysis:
+```{r}
+data("mtcars")
+mt_cars <- mtcars
+dim(mt_cars)
+head(mt_cars)
+str(mt_cars)
+```
+
+Base Statistics:
+```{r}
+summary(mt_cars)
+```
+
+```{r}
+# Unique Values
+unique(mt_cars$cyl)
+unique(mt_cars$vs)
+unique(mt_cars$am)
+unique(mt_cars$gear)
+unique(mt_cars$carb)
+```
+
+The variables **cyl**, **vs**, **am**, **gear**, & **carb** can be converted into a factor variables as it seems that thye are rather a level than a numeric.
+
+```{r}
+# Convert the variables into factor from numeric
+mt_cars$cyl <- factor(mt_cars$cyl)
+mt_cars$vs <- factor(mt_cars$vs)
+mt_cars$am <- factor(mt_cars$am,labels=c("Automatic","Manual")) # 0=automatic, 1=manual
+mt_cars$gear <- factor(mt_cars$gear)
+mt_cars$carb <- factor(mt_cars$carb)
+str(mt_cars)
+```
+
+The boxplot (plot1 in the appendix) shows that Manual Transmission provides better MPG compared to Automatic Transmission.
+
+The boxplot (plot2 in the appendix) shows that the mileage (MPG) is get decreasing drastically if the number of cylinders **cyl** increases from 4 to 6 and 8.
+
+From all the plots (plot1, plot2, plot3 in the appendix), we can notice that variables **am**, **cyl**, **disp**, **hp**, **drat**, **wt**, and **qsec** seem to have some strong correlation with **mpg**. But we will use linear models to quantify this in the subsequent regression analysis section.
+
+## Inference Analysis
+
+- $H_{0}$: **Mileage (MPG)** is not affected by Transmission types.
+- $H_{a}$: **Mileage (MPG)** is affected by Transmission types.
+
+```{r}
+t.test(mpg ~ am, data = mt_cars)
+```
+
+The above inference analysis clearly says that the p-value 0.001374 which is < 0.05 & 95 % confidence intervalthe (-11.280194  -3.209684) not contains zero and Manual & Automatic transmissions are significatively different.
+
+## Regression Analysis
+
+We start building linear regression models based on the different variables like only with transimission type, variables selected by STEP & AOV techniques and all variables. Then find out the best fit model among them using ANOVA technique. Then finally, perform analysis of residuals.
+
+### Model with only Transmission Type
+
+First we will run a linear regression model with **am** as independent and **mpg** as dependent variable.
+
+```{r}
+base_model <- lm(mpg ~ am, data = mt_cars)
+summary(base_model)
+```
+
+It shows that the coefficient is significant, at 7.245, which we can interpret as Automatic to Manual transmission will increase the mileage (mpg) by 7.245. So, transmission type has an impact on mpg.
+
+It also shows that the adjusted R squared value is only 0.3385 which means that only 33.8% of the regression variance can be explained by this model.
+
+There are , however, several other predictor/independent variables that we need to look at them to see if they play any impact in the model or not.
+
+
+### Multivariable Regression Model using R 'step' function
+
+Here, we perfoms stepwise model selection to select significant predictors for the model. To implement stepwise modle, we can use ```step``` method which runs lm multiple times to build multiple regression models and select the best variables from them using both forward selection and backward elimination methods by the AIC algorithm. The code is depicted in the section below, you can run it to see the detailed computations if required.
+
+```{r}
+init_model <- lm(mpg ~ ., data = mt_cars)
+step_model <- step(init_model, direction = "both") ## returns one by one to final best fit model
+#step_model <- step(init_model, trace=0) ## returns final best fit model
+```
+
+This analysis shows that the variables **cyl**, **hp** and **wt** as confounders and **am** as the independent variable.
+
+```{r}
+summary(step_model)
+```
+
+It shows that the adjusted R squared value is 0.8401 which suggests that 84% or more of variance can be explained by this model.
+
+P-values for **cyl**, **hp** and **wt** are below 0.05 which suggests that these are confounding variables in the relation between car Transmission Type and **mpg**.
+
+### Multivariable Regression Model using Analysis of Variance
+
+Here, we performs an Analysis of Variance technique for the data to find best fit model.
+
+```{r}
+T_variance <- aov(mpg ~ ., data = mt_cars)
+summary(T_variance)
+```
+
+This analysis shows that we need to consider the variables **cyl**, **disp**, and **wt** along with **am** as the p-values are less than .05 (i.e. 1.94e-07, 0.0171, and 0.0187 respectively).
+
+```{r}
+aov_model <- lm(mpg ~ cyl + disp + wt + am, data = mt_cars)
+summary(aov_model)
+```
+
+It shows that the adjusted R squared value is 0.8064 which suggests that 80% or more of variance can be explained by this model.
+
+P-values for **cyl** and **wt** are below 0.05 which suggests that these are confounding variables (Confounding variables are any other variable that also has an effect on your dependent variable) in the relation between car Transmission Type and **mpg**.
+
+
+### Model (Multivariable Regression Model) with all Variables
+
+Here, we performs a multivariate regression with **mpg** dependent variable and all the other variables as an independent.
+
+```{r}
+all_model <- lm(mpg ~ ., data = mt_cars)
+summary(all_model)
+```
+
+It shows that the adjusted R squared value is 0.779 which suggests that 77% or more of variance can be explained by this model. But, the problem is that all the coefficients are not significative at 5% as their p-values are greather than 0.05.
+
+### Best Model Selection
+
+We can use anova technique to find best model among above all the models.
+
+```{r}
+anova(base_model, step_model, all_model, aov_model)
+```
+
+ANOVA confirms that the STEP model with 4 regressors (cyl, hp, wt, am), is the best model.
+
+### Residual and Diagnostics Analysis
+
+Here, we examine resdual plots of the best model (step) and compute some of its regression diagnostics to uncover outliers in the data set.
+
+**Residuals**
+
+```{r}
+#par(mfrow = c(2, 2))
+plot(step_model)
+```
+
+**Diagnostics**
+
+```{r}
+leverage <- hatvalues(step_model)
+tail(sort(leverage),3)
+influential <- dfbetas(step_model)
+tail(sort(influential[,6]),3)
+```
+
+By looking at the above cars, we can see that our analysis was correct since  the same cars are mentioned in the residual plots.
+
+## Conclusion
+**Is an automatic or manual transmission better for MPG?**
+
+When we consider only Transimission type as predictor, it shows that Manual transimission cars are better mileages compared to automatic cars. But when we modeled by considering confounding variables, the difference is not as significant as it seems with only transimission type since a major part of the difference is explained by other variables.
+
+**Quantify the MPG difference between automatic and manual transmissions**
+
+Our analysis confirms that when we considered only transimission type in the model, manual cars increase the mileage (mpg) by 7.245. But when we modeled by considering confounding variables (cyl + hp + wt) or (cyl + disp + wt) with transimission type, the Manual car's mileage advantage drops to 1.80921 or 0.141212 respectively.
+
+## Appendix
+
+**plot1:** Boxplot of MPG by transmission type
+```{r}
+boxplot(mpg ~ am, data = mt_cars, col = (c("green","blue")), ylab = "Miles Per Gallon", xlab = "Transmission Type")
+```
+
+**plot2:** Boxplot of Mileage by Cylinder
+```{r}
+boxplot(mt_cars$mpg ~ mt_cars$cyl, data=mt_cars, outpch = 19, col=(c("green", "blue", "yellow")), ylab="miles per gallon", xlab="number of cylinders", main="Mileage by Cylinder")
+```
+
+**plot3:** Scatter plot matrix
+```{r}
+pairs(mpg ~ ., data = mt_cars)
+```
+
